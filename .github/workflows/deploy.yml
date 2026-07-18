@@ -1,0 +1,102 @@
+name: Build and Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache openFrameworks (compiled for Emscripten)
+        id: of-cache
+        uses: actions/cache@v4
+        with:
+          path: /opt/of
+          key: of-0.12.1-emscripten-emsdk-4.0.4-v1
+
+      - name: Download openFrameworks source
+        if: steps.of-cache.outputs.cache-hit != 'true'
+        run: |
+          wget -q -O of.tar.gz \
+            https://github.com/openframeworks/openFrameworks/archive/refs/tags/0.12.1.tar.gz
+          sudo mkdir -p /opt/of
+          sudo tar -xzf of.tar.gz -C /opt/of --strip-components=1
+          sudo chown -R $USER:$USER /opt/of
+
+      - name: Download emscripten third-party libs
+        if: steps.of-cache.outputs.cache-hit != 'true'
+        run: |
+          cd /opt/of
+          ./scripts/emscripten/download_libs.sh
+
+      - name: Pull Emscripten Docker image
+        run: docker pull emscripten/emsdk:4.0.4
+
+      - name: Start Emscripten container
+        run: |
+          docker run -di --name em \
+            -v /opt/of:/opt/of \
+            -v $PWD:/project \
+            emscripten/emsdk:4.0.4 bash
+
+      - name: Patch oF emscripten config
+        run: |
+          # reallocarray is provided by emscripten 4.x as a JS import at runtime,
+          # not resolved at link time — allow it to be undefined at link stage
+          sed -i 's/-sERROR_ON_UNDEFINED_SYMBOLS=1/-sERROR_ON_UNDEFINED_SYMBOLS=0/' \
+            /opt/of/libs/openFrameworksCompiled/project/emscripten/config.emscripten.default.mk
+
+      - name: Compile openFrameworks core for Emscripten
+        if: steps.of-cache.outputs.cache-hit != 'true'
+        run: |
+          docker exec em bash -c '
+            cd /opt/of/libs/openFrameworksCompiled/project
+            sed -i "s/PLATFORM_OPTIMIZATION_CFLAGS_DEBUG = .*/PLATFORM_OPTIMIZATION_CFLAGS_DEBUG = -g0/" \
+              emscripten/config.emscripten.default.mk
+            emmake make -j$(nproc) Release
+          '
+
+      - name: Build project
+        run: |
+          docker exec em bash -c '
+            cd /project
+            emmake make OF_ROOT=/opt/of -j$(nproc) Release
+          '
+
+      - name: Collect web output
+        run: |
+          mkdir _site
+          find bin -maxdepth 1 -type f \
+            \( -name "*.html" -o -name "*.js" -o -name "*.wasm" -o -name "*.data" \) \
+            -exec cp {} _site/ \;
+          cd _site && mv *.html index.html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

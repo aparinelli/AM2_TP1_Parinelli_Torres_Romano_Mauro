@@ -1,0 +1,6 @@
+obj/
+bin/*.app
+bin/data/.cache/
+*.o
+*.a
+*.d
