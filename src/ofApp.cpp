@@ -200,6 +200,24 @@ ofRectangle elegirCaraPrincipal(const std::vector<ofxCvBlob>& blobs) {
     }
     return mejor;
 }
+
+void cargarShader(ofShader& shader, const std::string& vertex, const std::string& fragment, bool bindDefaults) {
+    shader.setupShaderFromSource(GL_VERTEX_SHADER, vertex);
+    shader.setupShaderFromSource(GL_FRAGMENT_SHADER, fragment);
+    if (bindDefaults) shader.bindDefaults();
+    shader.linkProgram();
+}
+
+void dibujarBlurPass(ofShader& shader, ofFbo& source, ofFbo& target, const glm::vec2& direction) {
+    target.begin();
+    ofClear(0, 0, 0, 255);
+    shader.begin();
+    shader.setUniformTexture("sourceTex", source.getTexture(), 0);
+    shader.setUniform2f("direction", direction);
+    source.draw(0, 0);
+    shader.end();
+    target.end();
+}
 }
 
 // Convierte paths relativos del SVG en puntos absolutos.
@@ -305,10 +323,7 @@ void ofApp::configurarPath144Shader() {
             }
         )";
 
-        path144GradientShader.setupShaderFromSource(GL_VERTEX_SHADER, vertexShader);
-        path144GradientShader.setupShaderFromSource(GL_FRAGMENT_SHADER, fragmentShader);
-        path144GradientShader.bindDefaults();
-        path144GradientShader.linkProgram();
+        cargarShader(path144GradientShader, vertexShader, fragmentShader, true);
     } else {
         const std::string vertexShader = R"(
             #version 120
@@ -333,9 +348,7 @@ void ofApp::configurarPath144Shader() {
             }
         )";
 
-        path144GradientShader.setupShaderFromSource(GL_VERTEX_SHADER, vertexShader);
-        path144GradientShader.setupShaderFromSource(GL_FRAGMENT_SHADER, fragmentShader);
-        path144GradientShader.linkProgram();
+        cargarShader(path144GradientShader, vertexShader, fragmentShader, false);
     }
 }
 
@@ -456,23 +469,32 @@ void ofApp::configurarPath144CamaraShaders() {
             uniform sampler2DRect maskTex;
             uniform vec2 cameraSize;
             uniform vec2 canvasSize;
+            uniform vec4 pathBounds;
+            uniform vec2 focusCenter;
+            uniform float mirrorCamera;
             in vec2 vCanvasPosition;
             out vec4 outputColor;
 
             vec2 coverCameraCoord(vec2 canvasPosition) {
-                vec2 uv = canvasPosition / canvasSize;
-                float canvasAspect = canvasSize.x / canvasSize.y;
+                vec2 targetUv = clamp((canvasPosition - pathBounds.xy) / pathBounds.zw, vec2(0.0), vec2(1.0));
+                float targetAspect = pathBounds.z / pathBounds.w;
                 float cameraAspect = cameraSize.x / cameraSize.y;
+                vec2 sourceSize = vec2(1.0);
 
-                if (cameraAspect > canvasAspect) {
-                    float sourceW = cameraSize.y * canvasAspect;
-                    float offsetX = (cameraSize.x - sourceW) * 0.5;
-                    return vec2(offsetX + uv.x * sourceW, uv.y * cameraSize.y);
+                if (cameraAspect > targetAspect) {
+                    sourceSize.x = targetAspect / cameraAspect;
+                } else {
+                    sourceSize.y = cameraAspect / targetAspect;
                 }
 
-                float sourceH = cameraSize.x / canvasAspect;
-                float offsetY = (cameraSize.y - sourceH) * 0.5;
-                return vec2(uv.x * cameraSize.x, offsetY + uv.y * sourceH);
+                vec2 effectiveFocus = clamp(focusCenter, vec2(0.0), vec2(1.0));
+                if (mirrorCamera > 0.5) effectiveFocus.x = 1.0 - effectiveFocus.x;
+
+                vec2 sourceMin = clamp(effectiveFocus - sourceSize * 0.5, vec2(0.0), vec2(1.0) - sourceSize);
+                vec2 cameraUv = sourceMin + targetUv * sourceSize;
+                if (mirrorCamera > 0.5) cameraUv.x = 1.0 - cameraUv.x;
+
+                return cameraUv * cameraSize;
             }
 
             void main() {
@@ -482,15 +504,8 @@ void ofApp::configurarPath144CamaraShaders() {
             }
         )";
 
-        path144BlurShader.setupShaderFromSource(GL_VERTEX_SHADER, blurVertexShader);
-        path144BlurShader.setupShaderFromSource(GL_FRAGMENT_SHADER, blurFragmentShader);
-        path144BlurShader.bindDefaults();
-        path144BlurShader.linkProgram();
-
-        path144CameraShader.setupShaderFromSource(GL_VERTEX_SHADER, cameraVertexShader);
-        path144CameraShader.setupShaderFromSource(GL_FRAGMENT_SHADER, cameraFragmentShader);
-        path144CameraShader.bindDefaults();
-        path144CameraShader.linkProgram();
+        cargarShader(path144BlurShader, blurVertexShader, blurFragmentShader, true);
+        cargarShader(path144CameraShader, cameraVertexShader, cameraFragmentShader, true);
     } else {
         const std::string blurVertexShader = R"(
             #version 120
@@ -534,22 +549,31 @@ void ofApp::configurarPath144CamaraShaders() {
             uniform sampler2DRect maskTex;
             uniform vec2 cameraSize;
             uniform vec2 canvasSize;
+            uniform vec4 pathBounds;
+            uniform vec2 focusCenter;
+            uniform float mirrorCamera;
             varying vec2 vCanvasPosition;
 
             vec2 coverCameraCoord(vec2 canvasPosition) {
-                vec2 uv = canvasPosition / canvasSize;
-                float canvasAspect = canvasSize.x / canvasSize.y;
+                vec2 targetUv = clamp((canvasPosition - pathBounds.xy) / pathBounds.zw, vec2(0.0), vec2(1.0));
+                float targetAspect = pathBounds.z / pathBounds.w;
                 float cameraAspect = cameraSize.x / cameraSize.y;
+                vec2 sourceSize = vec2(1.0);
 
-                if (cameraAspect > canvasAspect) {
-                    float sourceW = cameraSize.y * canvasAspect;
-                    float offsetX = (cameraSize.x - sourceW) * 0.5;
-                    return vec2(offsetX + uv.x * sourceW, uv.y * cameraSize.y);
+                if (cameraAspect > targetAspect) {
+                    sourceSize.x = targetAspect / cameraAspect;
+                } else {
+                    sourceSize.y = cameraAspect / targetAspect;
                 }
 
-                float sourceH = cameraSize.x / canvasAspect;
-                float offsetY = (cameraSize.y - sourceH) * 0.5;
-                return vec2(uv.x * cameraSize.x, offsetY + uv.y * sourceH);
+                vec2 effectiveFocus = clamp(focusCenter, vec2(0.0), vec2(1.0));
+                if (mirrorCamera > 0.5) effectiveFocus.x = 1.0 - effectiveFocus.x;
+
+                vec2 sourceMin = clamp(effectiveFocus - sourceSize * 0.5, vec2(0.0), vec2(1.0) - sourceSize);
+                vec2 cameraUv = sourceMin + targetUv * sourceSize;
+                if (mirrorCamera > 0.5) cameraUv.x = 1.0 - cameraUv.x;
+
+                return cameraUv * cameraSize;
             }
 
             void main() {
@@ -559,13 +583,8 @@ void ofApp::configurarPath144CamaraShaders() {
             }
         )";
 
-        path144BlurShader.setupShaderFromSource(GL_VERTEX_SHADER, blurVertexShader);
-        path144BlurShader.setupShaderFromSource(GL_FRAGMENT_SHADER, blurFragmentShader);
-        path144BlurShader.linkProgram();
-
-        path144CameraShader.setupShaderFromSource(GL_VERTEX_SHADER, cameraVertexShader);
-        path144CameraShader.setupShaderFromSource(GL_FRAGMENT_SHADER, cameraFragmentShader);
-        path144CameraShader.linkProgram();
+        cargarShader(path144BlurShader, blurVertexShader, blurFragmentShader, false);
+        cargarShader(path144CameraShader, cameraVertexShader, cameraFragmentShader, false);
     }
 }
 
@@ -587,23 +606,8 @@ void ofApp::actualizarMascaraPath144() {
 
     const float blurRadius = 6.0f;
     for (int i = 0; i < 4; i++) {
-        path144BlurFbo[1].begin();
-        ofClear(0, 0, 0, 255);
-        path144BlurShader.begin();
-        path144BlurShader.setUniformTexture("sourceTex", path144BlurFbo[0].getTexture(), 0);
-        path144BlurShader.setUniform2f("direction", blurRadius, 0.0f);
-        path144BlurFbo[0].draw(0, 0);
-        path144BlurShader.end();
-        path144BlurFbo[1].end();
-
-        path144BlurFbo[0].begin();
-        ofClear(0, 0, 0, 255);
-        path144BlurShader.begin();
-        path144BlurShader.setUniformTexture("sourceTex", path144BlurFbo[1].getTexture(), 0);
-        path144BlurShader.setUniform2f("direction", 0.0f, blurRadius);
-        path144BlurFbo[1].draw(0, 0);
-        path144BlurShader.end();
-        path144BlurFbo[0].end();
+        dibujarBlurPass(path144BlurShader, path144BlurFbo[0], path144BlurFbo[1], {blurRadius, 0.0f});
+        dibujarBlurPass(path144BlurShader, path144BlurFbo[1], path144BlurFbo[0], {0.0f, blurRadius});
     }
 }
 
@@ -846,6 +850,10 @@ void ofApp::dibujarCamaraPath144() {
     path144CameraShader.setUniform2f("cameraSize",
         path144Camera.getWidth(), path144Camera.getHeight());
     path144CameraShader.setUniform2f("canvasSize", SVG_W, SVG_H);
+    path144CameraShader.setUniform4f("pathBounds",
+        path144Bounds.x, path144Bounds.y, path144Bounds.width, path144Bounds.height);
+    path144CameraShader.setUniform2f("focusCenter", path144CameraFocus);
+    path144CameraShader.setUniform1f("mirrorCamera", 1.0f);
     ofSetColor(255);
     ofDrawRectangle(0, 0, SVG_W, SVG_H);
     path144CameraShader.end();
