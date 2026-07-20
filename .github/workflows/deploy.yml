@@ -3,6 +3,7 @@ name: Build and Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -21,12 +22,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
       - name: Cache openFrameworks (compiled for Emscripten)
         id: of-cache
         uses: actions/cache@v4
         with:
           path: /opt/of
-          key: of-0.12.1-emscripten-emsdk-4.0.4-v1
+          key: of-0.12.1-emscripten-emsdk-4.0.4-v2-pages
 
       - name: Download openFrameworks source
         if: steps.of-cache.outputs.cache-hit != 'true'
@@ -55,10 +59,50 @@ jobs:
 
       - name: Patch oF emscripten config
         run: |
-          # reallocarray is provided by emscripten 4.x as a JS import at runtime,
-          # not resolved at link time — allow it to be undefined at link stage
-          sed -i 's/-sERROR_ON_UNDEFINED_SYMBOLS=1/-sERROR_ON_UNDEFINED_SYMBOLS=0/' \
-            /opt/of/libs/openFrameworksCompiled/project/emscripten/config.emscripten.default.mk
+          CFG=/opt/of/libs/openFrameworksCompiled/project/emscripten/config.emscripten.default.mk
+          # reallocarray is provided by emscripten as a JS import at runtime.
+          sed -i 's/-sERROR_ON_UNDEFINED_SYMBOLS=1/-sERROR_ON_UNDEFINED_SYMBOLS=0/' "$CFG"
+          # SharedArrayBuffer/COOP+COEP are not guaranteed for project Pages sites.
+          sed -i 's/PLATFORM_PTHREAD = .*/PLATFORM_PTHREAD =/' "$CFG"
+          sed -i 's/CFLAG_PLATFORM_PTHREAD = .*/CFLAG_PLATFORM_PTHREAD =/' "$CFG"
+          # Avoid source-map fetches delaying runtime start.
+          sed -i 's/-gsource-map//g' "$CFG"
+          sed -i 's/-sLOAD_SOURCE_MAP=1//g' "$CFG"
+
+      - name: Patch oF shader logging to avoid Emscripten locale crash
+        run: |
+          python3 - <<'EOF'
+          path = '/opt/of/libs/openFrameworks/gl/ofShader.cpp'
+          with open(path, 'r', encoding='utf-8') as f:
+              src = f.read()
+
+          replacements = [
+              (
+                  'ofLogError("ofShader") << "checkProgramLinkStatus(): OpenGL generated error " << err << " trying to get the program link status, does your video card support shader programs?";',
+                  'ofLogError("ofShader", "checkProgramLinkStatus(): OpenGL generated error %u trying to get the program link status, does your video card support shader programs?", (unsigned)err);'
+              ),
+              (
+                  'ofLogVerbose("ofShader") << "checkProgramLinkStatus(): program " << program << " linked";',
+                  'ofLogVerbose("ofShader", "checkProgramLinkStatus(): program %u linked", (unsigned)program);'
+              ),
+              (
+                  'ofLogVerbose("ofShader") << "linkProgram(): attaching " << nameForType(it.first) << " shader to program " << program;',
+                  'ofLogVerbose("ofShader", "linkProgram(): attaching %s shader to program %u", nameForType(it.first).c_str(), (unsigned)program);'
+              ),
+          ]
+
+          for old, new in replacements:
+              src = src.replace(old, new)
+
+          with open(path, 'w', encoding='utf-8') as f:
+              f.write(src)
+          EOF
+
+      - name: Patch oF random engine for Emscripten
+        run: |
+          RNG=/opt/of/libs/openFrameworks/utils/ofRandomEngine.h
+          perl -0pi -e 's/#include <random>/#include <chrono>\n#include <random>/' "$RNG"
+          perl -0pi -e 's/std::random_device rd_ \{\};\n\tstd::seed_seq seq_ \{ rd_\(\), rd_\(\), rd_\(\), rd_\(\) \}; \/\/ 4 is considered fine for non-cryptographic needs\n\tstd::mt19937 gen_ \{ seq_ \};/#ifdef TARGET_EMSCRIPTEN\n\tstd::mt19937 gen_ { static_cast<std::mt19937::result_type>(std::chrono::steady_clock::now().time_since_epoch().count()) };\n#else\n\tstd::random_device rd_ {};\n\tstd::seed_seq seq_ { rd_(), rd_(), rd_(), rd_() }; \/\/ 4 is considered fine for non-cryptographic needs\n\tstd::mt19937 gen_ { seq_ };\n#endif/' "$RNG"
 
       - name: Compile openFrameworks core for Emscripten
         if: steps.of-cache.outputs.cache-hit != 'true'
@@ -80,10 +124,18 @@ jobs:
       - name: Collect web output
         run: |
           mkdir _site
-          find bin -maxdepth 1 -type f \
-            \( -name "*.html" -o -name "*.js" -o -name "*.wasm" -o -name "*.data" \) \
+          find bin/em -type f \
+            \( -name "*.html" -o -name "*.js" -o -name "*.wasm" -o -name "*.data" \
+               -o -name "*.css" -o -name ".htaccess" \) \
             -exec cp {} _site/ \;
-          cd _site && mv *.html index.html
+          html_file="$(find _site -maxdepth 1 -name '*.html' | head -n1)"
+          if [ -n "$html_file" ] && [ "$html_file" != "_site/index.html" ]; then
+            mv "$html_file" _site/index.html
+          fi
+
+      - name: Patch generated Emscripten target lookup
+        run: |
+          perl -0pi -e 's/var findEventTarget=target=>\{target=maybeCStringToJsString\(target\);var domElement=specialHTMLTargets\[target\]\|\|\(typeof document!=\"undefined\"\?document\.querySelector\(target\):null\);return domElement\}/var findEventTarget=target=>{target=maybeCStringToJsString(target);if(target === \"\" && typeof document!==\"undefined\"){return document.querySelector(\"#canvas\")}var domElement=specialHTMLTargets[target]||(typeof document!==\"undefined\"?document.querySelector(target):null);return domElement}/' _site/index.js
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

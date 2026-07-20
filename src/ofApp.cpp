@@ -406,6 +406,7 @@ void ofApp::configurarRecursosCamaraPath144() {
 }
 
 void ofApp::configurarDetectorRostroPath144() {
+#ifndef TARGET_EMSCRIPTEN
     const auto cascadePath = ofToDataPath("haarcascade_frontalface_default.xml", true);
     if (!ofFile::doesFileExist(cascadePath)) {
         ofLogWarning("camera") << "missing haar cascade: " << cascadePath;
@@ -417,6 +418,7 @@ void ofApp::configurarDetectorRostroPath144() {
     path144FaceFinder.setScaleHaar(1.2f);
     path144FaceFinder.setNeighbors(2);
     path144FaceFinderReady = true;
+#endif
 }
 
 void ofApp::configurarPath144CamaraShaders() {
@@ -765,8 +767,12 @@ void ofApp::actualizarTrackingRostroPath144() {
         return;
     }
 
+#ifndef TARGET_EMSCRIPTEN
     path144FaceFinder.findHaarObjects(pixels, 80, 80);
     ofRectangle face = elegirCaraPrincipal(path144FaceFinder.blobs);
+#else
+    ofRectangle face;  // no face detection in Emscripten
+#endif
 
     if (face.getArea() > 0.0f) {
         glm::vec2 target = {

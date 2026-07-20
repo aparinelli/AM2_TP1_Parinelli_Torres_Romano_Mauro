@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+main_file="$root/src/main.cpp"
+header_file="$root/src/ofApp.h"
+app_file="$root/src/ofApp.cpp"
+
+grep -q '#ifdef TARGET_EMSCRIPTEN' "$main_file"
+grep -Eq 'ofSetLogLevel\(OF_LOG_SILENT\)' "$main_file"
+grep -Eq 'ofSetupOpenGL\(1920,[[:space:]]*1080,[[:space:]]*OF_WINDOW\)' "$main_file"
+grep -Eq 'ofRunApp\(new ofApp\(\)\)' "$main_file"
+grep -Eq '#ifndef TARGET_EMSCRIPTEN' "$header_file"
+grep -Eq '#include "ofxCvHaarFinder\.h"' "$header_file"
+grep -Eq 'ofxCvHaarFinder[[:space:]]+path144FaceFinder' "$header_file"
+grep -Eq '#ifndef TARGET_EMSCRIPTEN' "$app_file"
+grep -Eq 'path144FaceFinder\.findHaarObjects' "$app_file"
+grep -Eq 'no face detection in Emscripten' "$app_file"

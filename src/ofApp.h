@@ -1,6 +1,8 @@
 #pragma once
 #include "ofMain.h"
+#ifndef TARGET_EMSCRIPTEN
 #include "ofxCvHaarFinder.h"
+#endif
 #include <vector>
 #include <string>
 
@@ -32,7 +34,9 @@ private:
     ofFbo path144MaskFbo;
     ofFbo path144BlurFbo[2];
     ofVideoGrabber path144Camera;
+#ifndef TARGET_EMSCRIPTEN
     ofxCvHaarFinder path144FaceFinder;
+#endif
     ofRectangle path144Bounds;
     glm::vec2 path144CameraFocus = {0.5f, 0.5f};
     glm::vec2 path144GradientCenter = {1618.6348f, 228.97741f};
