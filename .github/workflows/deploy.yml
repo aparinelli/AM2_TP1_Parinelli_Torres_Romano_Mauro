@@ -196,6 +196,7 @@ jobs:
         run: |
           python3 - <<'EOF'
           from pathlib import Path
+          import re
 
           path = Path("/opt/of/addons/ofxEmscripten/libs/html5video/lib/emscripten/library_html5video.js")
           src = path.read_text()
@@ -250,13 +251,17 @@ jobs:
           }
 
           for name, sig in signatures.items():
-              marker = f"    {name}: function"
               sig_line = f"    {name}__sig: '{sig}',\n"
-              if sig_line in src:
+              if f"{name}__sig" in src:
                   continue
-              if marker not in src:
+              pattern = re.compile(rf"^(\s*)({re.escape(name)}: function)", re.MULTILINE)
+              src, count = pattern.subn(
+                  lambda match: f"{match.group(1)}{name}__sig: '{sig}',\n{match.group(1)}{match.group(2)}",
+                  src,
+                  count=1,
+              )
+              if count != 1:
                   raise SystemExit(f"Missing JS bridge function {name}")
-              src = src.replace(marker, sig_line + marker, 1)
 
           path.write_text(src)
           EOF
