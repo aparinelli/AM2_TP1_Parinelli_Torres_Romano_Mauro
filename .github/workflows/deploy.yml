@@ -133,6 +133,12 @@ jobs:
             mv "$html_file" _site/index.html
           fi
 
+      - name: Patch generated Emscripten HTML bootstrap
+        run: |
+          # app.js defines Module.canvas; keep it ordered ahead of index.js startup.
+          perl -0pi -e 's/<script async type="text\/javascript" src="app\.js"><\/script>/<script type="text\/javascript" src="app.js"><\/script>/' _site/index.html
+          perl -0pi -e 's/<script async type="text\/javascript" src="index\.js"><\/script>/<script type="text\/javascript" src="index.js"><\/script>/' _site/index.html
+
       - name: Patch generated Emscripten target lookup
         run: |
           perl -0pi -e 's/var findEventTarget=target=>\{target=maybeCStringToJsString\(target\);var domElement=specialHTMLTargets\[target\]\|\|\(typeof document!=\"undefined\"\?document\.querySelector\(target\):null\);return domElement\}/var findEventTarget=target=>{target=maybeCStringToJsString(target);if(target === \"\" && typeof document!==\"undefined\"){return document.querySelector(\"#canvas\")}var domElement=specialHTMLTargets[target]||(typeof document!==\"undefined\"?document.querySelector(target):null);return domElement}/' _site/index.js
