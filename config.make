@@ -78,6 +78,7 @@ OF_ROOT = /Users/alejoparinelli/facu/AM2/of_v0.12.1_osx_release
 # incorporated directly into the final executable application binary.
 # TODO: should this be a default setting?
 # PROJECT_LDFLAGS=-Wl,-rpath=./libs
+PROJECT_LDFLAGS = -sASSERTIONS=1
 
 ################################################################################
 # PROJECT DEFINES

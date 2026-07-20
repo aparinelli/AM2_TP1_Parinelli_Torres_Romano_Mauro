@@ -1,8 +1,6 @@
 #include "ofApp.h"
 #include <sstream>
 #include <algorithm>
-#include <cctype>
-#include <cstdlib>
 
 namespace {
 const float PAT_SOURCE_W = 377.87529f;
@@ -14,140 +12,18 @@ const std::string AP105_PATH_D = R"(M 18.012514,0.00328819 V 18.017953 H 0 v 9.6
 
 const std::string PATH144_D = R"(m 1452.9632,210.52298 c -14.7839,5.91355 -49.0826,9.4617 -69.1887,14.19254 -20.1061,4.73085 -26.0197,10.64442 -29.5679,26.01969 -3.5481,15.37527 -4.7308,40.21226 -1.774,56.77024 2.9568,16.55798 10.0531,24.83697 27.7938,31.34189 17.7407,6.50492 46.1258,11.23577 65.0492,10.05306 18.9234,-1.18271 28.3851,-8.27899 35.4814,-13.6012 7.0963,-5.32221 11.8271,-8.87032 18.9234,-14.7839 7.0963,-5.91358 16.558,-14.19257 20.6975,-12.4185 4.1395,1.77407 2.9567,13.6012 4.1394,31.93326 1.1828,18.33205 4.7309,43.16905 12.4186,56.77024 7.6876,13.60119 19.5147,15.96662 38.4382,10.64441 18.9234,-5.3222 44.9431,-18.33205 61.5011,-27.79374 16.5579,-9.46169 23.6542,-15.37527 28.3851,-20.10613 4.7308,-4.73085 7.0962,-8.27898 9.4617,-10.64442 2.3654,-2.36544 4.7308,-3.54816 7.0962,-6.50496 2.3655,-2.95679 4.7309,-7.68761 7.0963,-6.50488 2.3654,1.18273 4.7309,8.27898 11.2358,12.41847 6.5049,4.13949 17.1493,5.3222 33.7073,-5.3222 16.558,-10.64441 39.0296,-33.11599 50.2653,-45.53447 11.2358,-12.41848 11.2358,-14.78391 6.5049,-22.47155 -4.7308,-7.68764 -14.1925,-20.69748 -19.5147,-27.79376 -5.3222,-7.09628 -6.5049,-8.27899 -6.5049,-8.87035 0,-0.59136 1.1827,-0.59136 3.5481,-0.59136 2.3654,0 5.9136,0 13.6012,-0.59136 7.6876,-0.59135 19.5148,-1.77407 37.2555,-10.64442 17.7407,-8.87036 41.3949,-25.42831 54.4048,-36.07273 13.0098,-10.64443 15.3753,-15.3753 11.2358,-19.51479 -4.1395,-4.13948 -14.7839,-7.68761 -21.8802,-10.6444 -7.0963,-2.95678 -10.6444,-5.32219 -27.7938,-5.91356 -17.1493,-0.59138 -47.8999,0.59134 -68.006,2.95676 -20.1061,2.36543 -29.5678,5.91357 -34.89,8.87035 -5.3222,2.95678 -6.505,5.32222 -5.3223,0.59136 1.1827,-4.73087 4.7309,-16.558 8.279,-30.1592 3.5481,-13.6012 7.0963,-28.97647 -1.1827,-39.029528 -8.279,-10.05306 -28.3851,-14.783914 -44.3517,-16.557985 -15.9666,-1.774072 -27.7938,-0.591353 -34.8901,5.322209 -7.0962,5.913562 -9.4617,16.557994 -9.4617,15.375284 0,-1.18271 2.3655,-14.192574 -12.4185,-27.202423 -14.7839,-13.009849 -46.7171,-26.019672 -66.8233,-26.611034 -20.1061,-0.591363 -28.3851,11.23577 -32.5246,20.697476 -4.1395,9.461706 -4.1395,16.557985 -2.9568,21.88021 1.1828,5.322226 3.5482,8.870349 4.7309,11.235771 1.1827,2.36542 1.1827,3.54813 0.5914,1.77406 -0.5914,-1.77407 -1.7741,-6.504922 -4.7309,-11.82714 -2.9568,-5.322218 -7.6876,-11.235752 -17.7407,-14.192543 -10.0531,-2.956791 -25.4283,-2.956791 -35.4814,5.91355 -10.0531,8.870341 -14.7839,26.611043 -15.9666,37.255483 -1.1827,10.64444 1.1827,14.19257 5.3222,16.55799 4.1395,2.36542 10.053,3.54812 12.4185,4.13948 2.3654,0.59136 1.1827,0.59136 -1.1828,0.59136 -2.3654,0 -5.9135,0 -13.0098,1.77407 -7.0963,1.77407 -17.7407,5.32221 -23.0629,9.4617 -5.3222,4.1395 -5.3222,8.87036 -2.3654,14.78393 2.9568,5.91358 8.8703,13.00982 12.4185,16.55797 3.5481,3.54815 4.7308,3.54815 7.6876,7.68765 2.9568,4.13951 7.6876,12.41851 -7.0963,18.33207 z)";
 
-bool esComandoPath(char c) {
-    switch (c) {
-        case 'M': case 'm': case 'L': case 'l': case 'H': case 'h':
-        case 'V': case 'v': case 'C': case 'c': case 'Z': case 'z':
-            return true;
-        default:
-            return false;
-    }
-}
-
-bool esTokenComando(const std::string& token) {
-    return token.size() == 1 && esComandoPath(token[0]);
-}
-
-std::vector<std::string> tokenizarPathSVG(const std::string& d) {
-    std::vector<std::string> tokens;
-    for (size_t i = 0; i < d.size();) {
-        char c = d[i];
-        if (std::isspace((unsigned char)c) || c == ',') {
-            i++;
-        } else if (esComandoPath(c)) {
-            tokens.push_back(std::string(1, c));
-            i++;
-        } else {
-            size_t start = i;
-            if (d[i] == '-' || d[i] == '+') i++;
-            while (i < d.size() && std::isdigit((unsigned char)d[i])) i++;
-            if (i < d.size() && d[i] == '.') {
-                i++;
-                while (i < d.size() && std::isdigit((unsigned char)d[i])) i++;
-            }
-            if (i < d.size() && (d[i] == 'e' || d[i] == 'E')) {
-                i++;
-                if (i < d.size() && (d[i] == '-' || d[i] == '+')) i++;
-                while (i < d.size() && std::isdigit((unsigned char)d[i])) i++;
-            }
-            tokens.push_back(d.substr(start, i - start));
-        }
-    }
-    return tokens;
-}
-
-float leerNumeroPath(const std::vector<std::string>& tokens, size_t& i) {
-    return std::strtof(tokens[i++].c_str(), nullptr);
-}
-
 ofPath parsearPathSVGOriginal(const std::string& d) {
-    auto tokens = tokenizarPathSVG(d);
+    ofxSvg svg;
+    svg.loadFromString("<svg xmlns='http://www.w3.org/2000/svg'><path d='" + d + "'/></svg>");
     ofPath path;
-    path.clear();
+    if (svg.getNumPath() > 0) {
+        path = svg.getPathAt(0);
+    }
     path.setFilled(true);
     path.setFillColor(ofColor::black);
     path.setStrokeWidth(0);
     path.setPolyWindingMode(OF_POLY_WINDING_ODD);
     path.setCurveResolution(48);
-
-    char cmd = 0;
-    float x = 0.0f;
-    float y = 0.0f;
-    float startX = 0.0f;
-    float startY = 0.0f;
-
-    for (size_t i = 0; i < tokens.size();) {
-        if (esTokenComando(tokens[i])) cmd = tokens[i++][0];
-        bool rel = std::islower((unsigned char)cmd);
-        char op = std::toupper((unsigned char)cmd);
-
-        if (op == 'Z') {
-            path.close();
-            x = startX;
-            y = startY;
-            continue;
-        }
-
-        if (op == 'M') {
-            bool firstPoint = true;
-            while (i + 1 < tokens.size() && !esTokenComando(tokens[i])) {
-                float nx = leerNumeroPath(tokens, i);
-                float ny = leerNumeroPath(tokens, i);
-                if (rel) { nx += x; ny += y; }
-                x = nx;
-                y = ny;
-                if (firstPoint) {
-                    path.moveTo(x, y);
-                    startX = x;
-                    startY = y;
-                    firstPoint = false;
-                } else {
-                    path.lineTo(x, y);
-                }
-            }
-        } else if (op == 'L') {
-            while (i + 1 < tokens.size() && !esTokenComando(tokens[i])) {
-                float nx = leerNumeroPath(tokens, i);
-                float ny = leerNumeroPath(tokens, i);
-                if (rel) { nx += x; ny += y; }
-                path.lineTo(nx, ny);
-                x = nx;
-                y = ny;
-            }
-        } else if (op == 'H') {
-            while (i < tokens.size() && !esTokenComando(tokens[i])) {
-                float nx = leerNumeroPath(tokens, i);
-                if (rel) nx += x;
-                path.lineTo(nx, y);
-                x = nx;
-            }
-        } else if (op == 'V') {
-            while (i < tokens.size() && !esTokenComando(tokens[i])) {
-                float ny = leerNumeroPath(tokens, i);
-                if (rel) ny += y;
-                path.lineTo(x, ny);
-                y = ny;
-            }
-        } else if (op == 'C') {
-            while (i + 5 < tokens.size() && !esTokenComando(tokens[i])) {
-                float x1 = leerNumeroPath(tokens, i);
-                float y1 = leerNumeroPath(tokens, i);
-                float x2 = leerNumeroPath(tokens, i);
-                float y2 = leerNumeroPath(tokens, i);
-                float nx = leerNumeroPath(tokens, i);
-                float ny = leerNumeroPath(tokens, i);
-                if (rel) {
-                    x1 += x; y1 += y;
-                    x2 += x; y2 += y;
-                    nx += x; ny += y;
-                }
-                path.bezierTo(x1, y1, x2, y2, nx, ny);
-                x = nx;
-                y = ny;
-            }
-        }
-    }
-
     return path;
 }
 

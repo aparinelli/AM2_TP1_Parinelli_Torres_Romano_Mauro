@@ -1,5 +1,6 @@
 #pragma once
 #include "ofMain.h"
+#include "ofxSvg.h"
 #ifndef TARGET_EMSCRIPTEN
 #include "ofxCvHaarFinder.h"
 #endif
