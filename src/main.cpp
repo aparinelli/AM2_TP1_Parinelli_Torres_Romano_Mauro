@@ -8,7 +8,7 @@ int main(){
     // Silence window setup logs to avoid locale/ostream crashes in Emscripten.
     ofSetLogLevel(OF_LOG_SILENT);
     ofGLWindowSettings settings;
-    settings.setSize(1024, 768);
+    settings.setSize(960, 540);
     settings.windowMode = OF_WINDOW;
     auto window = ofCreateWindow(settings);
     ofSetLogLevel(OF_LOG_NOTICE);
@@ -16,7 +16,7 @@ int main(){
     ofRunMainLoop();
 #else
     ofGLFWWindowSettings settings;
-    settings.setSize(1024, 768);
+    settings.setSize(960, 540);
     settings.numSamples = 8;
     settings.windowMode = OF_WINDOW;
     auto window = ofCreateWindow(settings);

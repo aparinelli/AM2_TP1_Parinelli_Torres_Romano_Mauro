@@ -1,187 +1,247 @@
 #include "ofApp.h"
 
-namespace {
-const int APP_W = 1024;
-const int APP_H = 768;
-const int TITLE_FONT_SIZE = 88;
-const int BODY_FONT_SIZE = 25;
+///////////////////////////////////////////////////////////////////////////
+void ofApp::setup()
+{
+  ofSetWindowTitle("Prueba Camara");
+  ofSetWindowShape(960, 540);
+  ofSetFrameRate(60);
 
-void dibujarTextoCentrado(ofTrueTypeFont& font, const std::string& text, float x, float y) {
-    ofRectangle bounds = font.getStringBoundingBox(text, 0, 0);
-    font.drawString(text, x - bounds.width * 0.5f - bounds.x, y - bounds.height * 0.5f - bounds.y);
+  pantalla_completa = false;
+  startScreenActive = true;
+  escena_actual = 0;
+
+  configurarPantallaInicio();
 }
 
-float medirTextoUtf8(ofTrueTypeFont& font, const std::string& text) {
-    float width = 0.0f;
-    for (uint32_t codePoint : ofUTF8Iterator(text)) {
-        std::string letter = ofUTF8ToString(codePoint);
-        width += font.getStringBoundingBox(letter, 0, 0).width;
+///////////////////////////////////////////////////////////////////////////
+void ofApp::configurarPantallaInicio()
+{
+  fuente_titulo.load("fonts/CaslonCPswash.otf", 88, true, true);
+  fuente_texto.load("fonts/Arial.ttf", 52, true, true);
+
+  titulo_juego = "Prueba Cámara";
+
+  titulo_letras[0] = "P";
+  titulo_letras[1] = "r";
+  titulo_letras[2] = "u";
+  titulo_letras[3] = "e";
+  titulo_letras[4] = "b";
+  titulo_letras[5] = "a";
+  titulo_letras[6] = " ";
+  titulo_letras[7] = "C";
+  titulo_letras[8] = "á";
+  titulo_letras[9] = "m";
+  titulo_letras[10] = "a";
+  titulo_letras[11] = "r";
+  titulo_letras[12] = "a";
+  cantidad_letras_titulo = 13;
+
+  for (int i = 0; i < 20; i++)
+  {
+    alpha_letras[i] = 120 + i * 6;
+    sube_alpha_letras[i] = true;
+  }
+
+  titulos_escenas[0] = "Escena 1";
+  titulos_escenas[1] = "Escena 2";
+  titulos_escenas[2] = "Escena 3";
+
+  textos_escenas[0] = "Primera escena: el título respira.";
+  textos_escenas[1] = "Segunda escena: las letras flotan.";
+  textos_escenas[2] = "Tercera escena: el pulso se queda.";
+
+  ancho_boton = 300;
+  alto_boton = 86;
+  posicion_boton.set(ancho / 2 - ancho_boton / 2, 640);
+  alpha_boton = 150;
+  sube_alpha_boton = true;
+}
+
+///////////////////////////////////////////////////////////////////////////
+void ofApp::update()
+{
+  if (sube_alpha_boton)
+  {
+    alpha_boton += 3;
+    if (alpha_boton >= 255) sube_alpha_boton = false;
+  }
+  else
+  {
+    alpha_boton -= 3;
+    if (alpha_boton <= 150) sube_alpha_boton = true;
+  }
+
+  for (int i = 0; i < 20; i++)
+  {
+    if (sube_alpha_letras[i])
+    {
+      alpha_letras[i] += 2 + i % 3;
+      if (alpha_letras[i] >= 255) sube_alpha_letras[i] = false;
     }
-    return width;
-}
-
-void drawAnimatedTextCentered(
-        ofTrueTypeFont& font,
-        const std::string& text,
-        float centerX,
-        float baselineY,
-        float time,
-        float amplitude) {
-    float x = centerX - medirTextoUtf8(font, text) * 0.5f;
-    int index = 0;
-    for (uint32_t codePoint : ofUTF8Iterator(text)) {
-        std::string letter = ofUTF8ToString(codePoint);
-        ofRectangle bounds = font.getStringBoundingBox(letter, 0, 0);
-        float wave = sin(time * 3.0f + index * 0.42f);
-        float alpha = ofLerp(155.0f, 255.0f, 0.5f + 0.5f * wave);
-        ofSetColor(0, alpha);
-        font.drawString(letter, x, baselineY + wave * amplitude);
-        x += bounds.width;
-        index++;
+    else
+    {
+      alpha_letras[i] -= 2 + i % 3;
+      if (alpha_letras[i] <= 120) sube_alpha_letras[i] = true;
     }
+  }
 }
 
-ofTrueTypeFontSettings crearFontSettings(const std::string& path, int size) {
-    ofTrueTypeFontSettings settings(ofToDataPath(path, true), size);
-    settings.antialiased = true;
-    settings.dpi = 72;
-    settings.direction = OF_TTF_LEFT_TO_RIGHT;
-    settings.addRanges(ofAlphabet::Latin);
-    return settings;
-}
-}
+///////////////////////////////////////////////////////////////////////////
+void ofApp::draw()
+{
+  ofBackground(255);
 
-void ofApp::setup() {
-    ofSetWindowTitle("Prueba Camara");
-    ofSetFrameRate(60);
-    ofBackground(255);
-    ofEnableSmoothing();
-    ofEnableAntiAliasing();
+  if (!pantalla_completa) ofScale(0.5, 0.5);
 
-    configurarPantallaInicio();
+  if (startScreenActive)
+  {
+    dibujarPantallaInicio();
+  }
+  else
+  {
+    dibujarEscenaActual();
+  }
 }
 
-void ofApp::configurarPantallaInicio() {
-    ofTrueTypeFontSettings titleSettings = crearFontSettings("fonts/CaslonCPswash.otf", TITLE_FONT_SIZE);
-    ofTrueTypeFontSettings promptSettings = crearFontSettings("fonts/Arial.ttf", BODY_FONT_SIZE);
-    startTitleFont.load(titleSettings);
-    startPromptFont.load(promptSettings);
+///////////////////////////////////////////////////////////////////////////
+void ofApp::dibujarPantallaInicio()
+{
+  float ancho_titulo = 0;
 
-    scenes = {{
-        {"Escena 1", "Primera escena: el título respira."},
-        {"Escena 2", "Segunda escena: las letras flotan."},
-        {"Escena 3", "Tercera escena: el pulso se queda."},
-    }};
+  for (int i = 0; i < cantidad_letras_titulo; i++)
+  {
+    ancho_titulo += fuente_titulo.stringWidth(titulo_letras[i]);
+  }
+
+  float posicion_x = ancho / 2 - ancho_titulo / 2;
+
+  for (int i = 0; i < cantidad_letras_titulo; i++)
+  {
+    ofSetColor(0, alpha_letras[i]);
+    fuente_titulo.drawString(titulo_letras[i], posicion_x, 460);
+    posicion_x += fuente_titulo.stringWidth(titulo_letras[i]);
+  }
+
+  ofSetColor(255, alpha_boton);
+  ofDrawRectangle(posicion_boton, ancho_boton, alto_boton);
+
+  ofSetColor(0, alpha_boton);
+  ofDrawRectangle(posicion_boton.x, posicion_boton.y, ancho_boton, 4);
+  ofDrawRectangle(posicion_boton.x, posicion_boton.y + alto_boton - 4, ancho_boton, 4);
+  ofDrawRectangle(posicion_boton.x, posicion_boton.y, 4, alto_boton);
+  ofDrawRectangle(posicion_boton.x + ancho_boton - 4, posicion_boton.y, 4, alto_boton);
+
+  string texto_boton = "Empezar";
+  float boton_texto_x = posicion_boton.x + ancho_boton / 2 - fuente_texto.stringWidth(texto_boton) / 2;
+  float boton_texto_y = posicion_boton.y + 58;
+  fuente_texto.drawString(texto_boton, boton_texto_x, boton_texto_y);
+
+  ofSetColor(255);
 }
 
-void ofApp::update() {}
+///////////////////////////////////////////////////////////////////////////
+void ofApp::dibujarEscenaActual()
+{
+  dibujarTextoAnimado(titulos_escenas[escena_actual], 450);
 
-void ofApp::draw() {
-    ofBackground(255);
+  string texto = textos_escenas[escena_actual];
+  float texto_x = ancho / 2 - fuente_texto.stringWidth(texto) / 2;
 
-    float scale = std::min(ofGetWidth() / float(APP_W), ofGetHeight() / float(APP_H));
-    float offsetX = (ofGetWidth() - APP_W * scale) * 0.5f;
-    float offsetY = (ofGetHeight() - APP_H * scale) * 0.5f;
+  ofSetColor(0);
+  fuente_texto.drawString(texto, texto_x, alto - 160);
+  ofSetColor(255);
+}
 
-    ofPushMatrix();
-    ofTranslate(offsetX, offsetY);
-    ofScale(scale);
-    if (startScreenActive) {
-        dibujarPantallaInicio();
-    } else {
-        dibujarEscenaActual();
+///////////////////////////////////////////////////////////////////////////
+void ofApp::dibujarTextoAnimado(string texto, float y)
+{
+  float ancho_texto = 0;
+
+  for (int i = 0; i < texto.length(); i++)
+  {
+    string letra = texto.substr(i, 1);
+    ancho_texto += fuente_titulo.stringWidth(letra);
+  }
+
+  float x = ancho / 2 - ancho_texto / 2;
+
+  for (int i = 0; i < texto.length(); i++)
+  {
+    string letra = texto.substr(i, 1);
+    ofSetColor(0, alpha_letras[i]);
+    fuente_titulo.drawString(letra, x, y);
+    x += fuente_titulo.stringWidth(letra);
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////
+void ofApp::avanzarEscena()
+{
+  escena_actual++;
+  if (escena_actual > 2) escena_actual = 0;
+}
+
+///////////////////////////////////////////////////////////////////////////
+void ofApp::keyPressed(int key)
+{
+  if (key == 'f' || key == 'F')
+  {
+    pantalla_completa = !pantalla_completa;
+    ofToggleFullscreen();
+  }
+
+  if (key == OF_KEY_RETURN)
+  {
+    if (startScreenActive)
+    {
+      startScreenActive = false;
     }
-    ofPopMatrix();
+    else
+    {
+      avanzarEscena();
+    }
+  }
 }
 
-void ofApp::dibujarPantallaInicio() {
-    ofPushStyle();
-    ofSetColor(0);
-
-    const std::string title = "Prueba Cámara";
-    if (startTitleFont.isLoaded()) {
-        dibujarTextoCentrado(startTitleFont, title, APP_W * 0.5f, APP_H * 0.42f);
-    } else {
-        ofDrawBitmapStringHighlight(title, APP_W * 0.5f - 65.0f, APP_H * 0.42f);
-    }
-
-    const float pulse = 0.5f + 0.5f * sin(ofGetElapsedTimef() * 2.2f);
-    const float buttonAlpha = ofLerp(185.0f, 255.0f, pulse);
-    const float buttonW = 170.0f;
-    const float buttonH = 54.0f;
-    startButtonBounds = ofRectangle(APP_W * 0.5f - buttonW * 0.5f, APP_H * 0.59f, buttonW, buttonH);
-
-    ofFill();
-    ofSetColor(255, buttonAlpha);
-    ofDrawRectRounded(startButtonBounds, 12.0f);
-    ofSetLineWidth(2.0f);
-    ofNoFill();
-    ofSetColor(0, buttonAlpha);
-    ofDrawRectRounded(startButtonBounds, 12.0f);
-    ofFill();
-
-    if (startPromptFont.isLoaded()) {
-        dibujarTextoCentrado(startPromptFont, "Empezar",
-            startButtonBounds.getCenter().x, startButtonBounds.getCenter().y);
-    } else {
-        ofDrawBitmapString("Empezar", startButtonBounds.x + 56.0f, startButtonBounds.y + 33.0f);
-    }
-
-    ofPopStyle();
+///////////////////////////////////////////////////////////////////////////
+void ofApp::keyReleased(int key)
+{
 }
 
-void ofApp::dibujarEscenaActual() {
-    if (scenes.empty()) return;
-
-    const Scene& scene = scenes[currentScene % scenes.size()];
-    const float t = ofGetElapsedTimef();
-
-    ofPushStyle();
-    ofSetColor(0);
-
-    if (startTitleFont.isLoaded()) {
-        drawAnimatedTextCentered(startTitleFont, scene.title, APP_W * 0.5f, APP_H * 0.42f, t, 4.0f);
-    } else {
-        ofDrawBitmapStringHighlight(scene.title, APP_W * 0.5f - 45.0f, APP_H * 0.42f);
-    }
-
-    if (startPromptFont.isLoaded()) {
-        drawAnimatedTextCentered(startPromptFont, scene.caption, APP_W * 0.5f, APP_H - 96.0f, t + 0.8f, 2.0f);
-    } else {
-        ofDrawBitmapString(scene.caption, APP_W * 0.5f - 145.0f, APP_H - 96.0f);
-    }
-
-    ofPopStyle();
+///////////////////////////////////////////////////////////////////////////
+void ofApp::mouseMoved(int x, int y)
+{
 }
 
-void ofApp::avanzarEscena() {
-    if (!scenes.empty()) currentScene = (currentScene + 1) % scenes.size();
+///////////////////////////////////////////////////////////////////////////
+void ofApp::mouseDragged(int x, int y, int button)
+{
 }
 
-void ofApp::keyPressed(int key) {
-    if (key == OF_KEY_RETURN || key == '\r' || key == '\n') {
-        if (startScreenActive) {
-            startScreenActive = false;
-        } else {
-            avanzarEscena();
-        }
-    }
+///////////////////////////////////////////////////////////////////////////
+void ofApp::mousePressed(int x, int y, int button)
+{
+  if (!pantalla_completa)
+  {
+    x = x * 2;
+    y = y * 2;
+  }
+
+  if (startScreenActive &&
+      x >= posicion_boton.x &&
+      x <= posicion_boton.x + ancho_boton &&
+      y >= posicion_boton.y &&
+      y <= posicion_boton.y + alto_boton)
+  {
+    startScreenActive = false;
+    return;
+  }
+
+  if (!startScreenActive) avanzarEscena();
 }
 
-void ofApp::keyReleased(int key) {}
-void ofApp::mouseMoved(int x, int y) {}
-void ofApp::mouseDragged(int x, int y, int button) {}
-void ofApp::mousePressed(int x, int y, int button) {
-    float scale = std::min(ofGetWidth() / float(APP_W), ofGetHeight() / float(APP_H));
-    float offsetX = (ofGetWidth() - APP_W * scale) * 0.5f;
-    float offsetY = (ofGetHeight() - APP_H * scale) * 0.5f;
-    glm::vec2 appPoint = {(x - offsetX) / scale, (y - offsetY) / scale};
-
-    if (startScreenActive && startButtonBounds.inside(appPoint)) {
-        startScreenActive = false;
-        return;
-    }
-
-    if (!startScreenActive) avanzarEscena();
+///////////////////////////////////////////////////////////////////////////
+void ofApp::mouseReleased(int x, int y, int button)
+{
 }
-void ofApp::mouseReleased(int x, int y, int button) {}
