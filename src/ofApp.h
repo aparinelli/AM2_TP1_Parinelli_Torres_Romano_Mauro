@@ -35,6 +35,8 @@ private:
     ofFbo path144MaskFbo;
     ofFbo path144BlurFbo[2];
     ofVideoGrabber path144Camera;
+    ofTrueTypeFont startTitleFont;
+    ofTrueTypeFont startPromptFont;
 #ifndef TARGET_EMSCRIPTEN
     ofxCvHaarFinder path144FaceFinder;
 #endif
@@ -84,9 +86,11 @@ private:
     float t       = 0.0f;
     bool  paused  = false;
     bool  showHUD = true;
+    bool  startScreenActive = true;
 
     static std::vector<glm::vec2> parsearPathSVGRelativo(const std::string& d);
 
+    void configurarPantallaInicio();
     void configurarPatron();
     void configurarPath144();
     void configurarPath144Shader();
@@ -109,5 +113,6 @@ private:
     void dibujarCaja();
     void dibujarEstrellas();
     void dibujarEspirales();
+    void dibujarPantallaInicio();
     void dibujarHUD();
 };

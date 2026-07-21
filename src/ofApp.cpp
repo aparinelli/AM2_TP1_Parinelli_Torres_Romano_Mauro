@@ -100,6 +100,11 @@ void dibujarBlurPass(ofShader& shader, ofFbo& source, ofFbo& target, const glm::
     shader.end();
     target.end();
 }
+
+void dibujarTextoCentrado(ofTrueTypeFont& font, const std::string& text, float x, float y) {
+    ofRectangle bounds = font.getStringBoundingBox(text, 0, 0);
+    font.drawString(text, x - bounds.width * 0.5f - bounds.x, y - bounds.height * 0.5f - bounds.y);
+}
 }
 
 // Convierte paths relativos del SVG en puntos absolutos.
@@ -157,12 +162,21 @@ void ofApp::setup() {
     ofEnableSmoothing();
     ofEnableAntiAliasing();
 
+    configurarPantallaInicio();
     configurarPatron();
     configurarPath144();
     configurarPath144Camara();
     configurarEspirales();
     configurarEstrellas();
     configurarCaja();
+}
+
+void ofApp::configurarPantallaInicio() {
+    const std::string titleFontPath = ofToDataPath("fonts/CaslonCPswash.otf", true);
+    startTitleFont.load(titleFontPath, 118, true, true);
+
+    const std::string promptFontPath = ofToDataPath("fonts/Arial.ttf", true);
+    startPromptFont.load(promptFontPath, 34, true, true);
 }
 
 void ofApp::configurarPatron() {
@@ -814,6 +828,66 @@ void ofApp::actualizarAnimacion() {
     boxDrift.y = cos(t * 0.15f) * 35.0f;
 }
 
+void ofApp::dibujarPantallaInicio() {
+    ofBackground(255);
+
+    ofPushStyle();
+    ofSetColor(0);
+
+    const std::string title = "Prueba Cámara";
+    if (startTitleFont.isLoaded()) {
+        dibujarTextoCentrado(startTitleFont, title, SVG_W * 0.5f, SVG_H * 0.42f);
+    } else {
+        ofDrawBitmapStringHighlight(title, SVG_W * 0.5f - 70.0f, SVG_H * 0.42f);
+    }
+
+    const float pulse = 0.5f + 0.5f * sin(ofGetElapsedTimef() * 2.4f);
+    const float promptAlpha = ofLerp(80.0f, 255.0f, pulse);
+    const std::string promptLeft = "Apretá";
+    const std::string promptRight = "para empezar";
+    const float promptY = SVG_H * 0.61f;
+    const float keyW = 112.0f;
+    const float keyH = 50.0f;
+    const float gap = 26.0f;
+
+    ofRectangle leftBounds = startPromptFont.isLoaded()
+        ? startPromptFont.getStringBoundingBox(promptLeft, 0, 0)
+        : ofRectangle(0, 0, promptLeft.size() * 8.0f, 12.0f);
+    ofRectangle rightBounds = startPromptFont.isLoaded()
+        ? startPromptFont.getStringBoundingBox(promptRight, 0, 0)
+        : ofRectangle(0, 0, promptRight.size() * 8.0f, 12.0f);
+    float totalW = leftBounds.width + gap + keyW + gap + rightBounds.width;
+    float x = SVG_W * 0.5f - totalW * 0.5f;
+
+    ofSetColor(0, promptAlpha);
+    if (startPromptFont.isLoaded()) {
+        startPromptFont.drawString(promptLeft, x, promptY);
+    } else {
+        ofDrawBitmapString(promptLeft, x, promptY);
+    }
+    x += leftBounds.width + gap;
+
+    ofNoFill();
+    ofSetLineWidth(2.0f);
+    ofSetColor(0, promptAlpha);
+    ofDrawRectRounded(x, promptY - keyH + 9.0f, keyW, keyH, 8.0f);
+    ofFill();
+    if (startPromptFont.isLoaded()) {
+        dibujarTextoCentrado(startPromptFont, "Enter", x + keyW * 0.5f, promptY - keyH * 0.5f + 9.0f);
+    } else {
+        ofDrawBitmapString("Enter", x + 33.0f, promptY - 20.0f);
+    }
+    x += keyW + gap;
+
+    if (startPromptFont.isLoaded()) {
+        startPromptFont.drawString(promptRight, x, promptY);
+    } else {
+        ofDrawBitmapString(promptRight, x, promptY);
+    }
+
+    ofPopStyle();
+}
+
 void ofApp::dibujarPatron() {
     float tile = patTile * patScale;
     int cols = int(1920.0f / tile) + 6;
@@ -956,19 +1030,30 @@ void ofApp::draw() {
     ofTranslate(tx, ty);
     ofScale(sc);
 
-    dibujarPatron();
-    dibujarCaja();
-    dibujarEstrellas();
-    dibujarEspirales();
-    dibujarPath144();
-    dibujarCamaraPath144();
+    if (startScreenActive) {
+        dibujarPantallaInicio();
+    } else {
+        dibujarPatron();
+        dibujarCaja();
+        dibujarEstrellas();
+        dibujarEspirales();
+        dibujarPath144();
+        dibujarCamaraPath144();
+    }
 
     ofPopMatrix();
 
-    dibujarHUD();
+    if (!startScreenActive) dibujarHUD();
 }
 
 void ofApp::keyPressed(int key) {
+    if (startScreenActive) {
+        if (key == OF_KEY_RETURN || key == '\r' || key == '\n') {
+            startScreenActive = false;
+        }
+        return;
+    }
+
     switch (key) {
         case 'q': patScale     = std::max(0.2f, patScale     - 0.1f);  break;
         case 'w': patScale     = std::min(6.0f, patScale     + 0.1f);  break;
