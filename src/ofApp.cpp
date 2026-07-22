@@ -248,16 +248,18 @@ void ofApp::dibujarInterfazApuestas()
   ofSetColor(20, 95, 220);
   // No esta en el md: ofSetLineWidth() engrosa la curva del grafico.
   ofSetLineWidth(6);
-  ofBeginShape();
-  for (int i = 0; i <= 80; i++)
+  for (int i = 0; i < 80; i++)
   {
     float x_valor = i / 80.0f;
     float y_valor = x_valor * x_valor;
-    float x = origen_x + x_valor * ancho_grafico;
-    float y = origen_y - y_valor * alto_grafico;
-    ofVertex(x, y);
+    float x_siguiente = (i + 1) / 80.0f;
+    float y_siguiente = x_siguiente * x_siguiente;
+    float x_1 = origen_x + x_valor * ancho_grafico;
+    float y_1 = origen_y - y_valor * alto_grafico;
+    float x_2 = origen_x + x_siguiente * ancho_grafico;
+    float y_2 = origen_y - y_siguiente * alto_grafico;
+    ofDrawLine(x_1, y_1, x_2, y_2);
   }
-  ofEndShape(false);
   // No esta en el md: ofSetLineWidth() vuelve al grosor normal para el resto del dibujo.
   ofSetLineWidth(1);
 
