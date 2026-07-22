@@ -23,7 +23,9 @@ public:
     int escena_actual;
 
     ofTrueTypeFont fuente_titulo;
+    ofTrueTypeFont fuente_titulo_fallback;
     ofTrueTypeFont fuente_texto;
+    ofTrueTypeFont fuente_texto_chico;
 
     string titulo_juego;
     string titulo_letras[20];
@@ -31,10 +33,14 @@ public:
     float alpha_letras[20];
     bool sube_alpha_letras[20];
 
-    string titulos_escenas[3];
-    string textos_escenas[3];
+    string titulos_escenas[4];
+    string textos_escenas[4];
+    string noticias_apuestas[3];
+    string mensajes_chat[6];
 
     ofVec2f posicion_boton;
+    ofVec2f posicion_boton_anterior;
+    ofVec2f posicion_boton_siguiente;
     float ancho_boton;
     float alto_boton;
     float alpha_boton;
@@ -43,6 +49,10 @@ public:
     void configurarPantallaInicio();
     void dibujarPantallaInicio();
     void dibujarEscenaActual();
+    void dibujarInterfazApuestas();
     void dibujarTextoAnimado(string texto, float y);
+    void dibujarTextoConFallback(string texto, float x, float y, float alpha);
+    float anchoTextoConFallback(string texto);
     void avanzarEscena();
+    void retrocederEscena();
 };

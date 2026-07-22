@@ -378,15 +378,22 @@ jobs:
 
       - name: Collect web output
         run: |
-          mkdir _site
+          _site_root="_site/preentrega/12-8"
+          mkdir -p "$_site_root"
           find bin/em -type f \
             \( -name "*.html" -o -name "*.js" -o -name "*.wasm" -o -name "*.data" \
                -o -name "*.css" -o -name ".htaccess" \) \
-            -exec cp {} _site/ \;
-          html_file="$(find _site -maxdepth 1 -name '*.html' | head -n1)"
-          if [ -n "$html_file" ] && [ "$html_file" != "_site/index.html" ]; then
-            mv "$html_file" _site/index.html
+            -exec cp {} "$_site_root"/ \;
+          html_file="$(find "$_site_root" -maxdepth 1 -name '*.html' | head -n1)"
+          if [ -n "$html_file" ] && [ "$html_file" != "$_site_root/index.html" ]; then
+            mv "$html_file" "$_site_root/index.html"
           fi
+          cat > _site/index.html <<'EOF'
+          <!doctype html>
+          <meta charset="utf-8">
+          <meta http-equiv="refresh" content="0; url=preentrega/12-8/">
+          <script>location.replace("preentrega/12-8/");</script>
+          EOF
 
       - name: Normalize generated Emscripten HTML bootstrap
         run: |
@@ -394,7 +401,7 @@ jobs:
           from pathlib import Path
           import re
 
-          path = Path("_site/index.html")
+          path = Path("_site/preentrega/12-8/index.html")
           html = path.read_text()
 
           html = re.sub(
@@ -465,7 +472,7 @@ jobs:
           python3 - <<'EOF'
           from pathlib import Path
 
-          path = Path("_site/index.js")
+          path = Path("_site/preentrega/12-8/index.js")
           js = path.read_text()
           old = 'var findCanvasEventTarget=findEventTarget;Module["findCanvasEventTarget"]=findCanvasEventTarget;'
           new = 'var findCanvasEventTarget=target=>Module["canvas"]||(typeof document!="undefined"?document.getElementById("canvas"):null);Module["findCanvasEventTarget"]=findCanvasEventTarget;'

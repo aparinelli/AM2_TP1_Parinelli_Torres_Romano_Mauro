@@ -20,6 +20,8 @@ Este proyecto queda refactorizado para usar el mismo tipo de codigo que aparece 
 
 - Ventana: `ofSetWindowShape()`, `ofToggleFullscreen()`, `ofHideCursor()`.
 - Dibujo: `ofScale()`, `ofSetColor()`, `ofDrawRectangle()`, `drawString()`, `draw()`.
+- Curvas y graficos simples: `ofBeginShape()`, `ofVertex()`, `ofEndShape(false)`, como en los ejemplos de audio de openFrameworks.
+- Ejes y divisiones: `ofDrawLine()`.
 - Texto: `ofTrueTypeFont.load()`, `stringWidth()`, `ofToString()`.
 - Movimiento y tiempo de juego: variables `float`, cambios en `update()`, `ofRandom()` si hace falta.
 - Interaccion: `keyPressed()`, `keyReleased()` y comparaciones directas con teclas.
@@ -28,9 +30,10 @@ Este proyecto queda refactorizado para usar el mismo tipo de codigo que aparece 
 
 - La resolucion de ventana sigue el ejemplo Timber: `960 x 540`.
 - Las coordenadas de diseno trabajan en `1920 x 1080` y se dibujan con `ofScale(0.5, 0.5)` cuando no hay pantalla completa.
-- Las escenas se guardan en arreglos fijos de 3 posiciones.
+- Las escenas se guardan en arreglos fijos, actualmente de 4 posiciones.
 - El texto se centra con `stringWidth()`.
 - Las tildes se sostienen cargando las fuentes con `load("archivo.ttf", tamano, true, true)`, usando el set completo de caracteres.
+- Si la fuente decorativa no trae numeros o letras con acentos, se usa una fuente secundaria para esos caracteres.
 
 ## No usar
 
